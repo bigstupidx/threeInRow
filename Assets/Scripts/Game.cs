@@ -9,6 +9,8 @@ public class Game : MonoBehaviour {
 	public int TableSize;
 	public int ScoresPerBubble;
 	public float BubblePadding;
+	public Pool bubblesPool;
+	public Pool particlesPool;
 	public RectTransform Table;
 	public Text scoresView;
 	public Animator curtainAnimator;
@@ -49,8 +51,9 @@ public class Game : MonoBehaviour {
 	{
 		gameState = GameState.free;
 		bubbles = new Bubble[TableSize,TableSize];
-		BubblePool.Get ().Initialize (TableSize);
-		ParticlesPool.Get ().Initialize (20);
+		int count = TableSize * TableSize;
+		bubblesPool.Initialize (count);
+		particlesPool.Initialize (count);
 		calculateBubblesValues ();
 		fillTable ();
 		showScores ();
@@ -98,7 +101,7 @@ public class Game : MonoBehaviour {
 		gameState = GameState.free;
 		for(int i = 0; i < TableSize; i++)
 			for(int j = 0; j < TableSize; j++)
-				BubblePool.Get().Push(bubbles[i,j].gameObject);
+				bubblesPool.Push(bubbles[i,j].gameObject);
 
 		bubbles = new Bubble[TableSize,TableSize];
 		fillTable ();
@@ -175,8 +178,8 @@ public class Game : MonoBehaviour {
 			Bubble bubble = bubbles[list[i].posX,list[i].posY];
 			bubbles[list[i].posX,list[i].posY] = null;
 			Vector3 pos  = bubble.transform.localPosition;
-			BubblePool.Get().Push(bubble.gameObject);
-			ParticleEmitter particle = ParticlesPool.Get().Pull();
+			bubblesPool.Push(bubble.gameObject);
+			ParticleEmitter particle = particlesPool.Pull().GetComponent<ParticleEmitter>();
 			particle.transform.SetParent(Table.transform);
 			particle.transform.localPosition = pos;
 			StartCoroutine(removeParticle(particle));
@@ -190,7 +193,8 @@ public class Game : MonoBehaviour {
 		yield return new WaitForEndOfFrame ();
 		particle.emit = true;
 		yield return new WaitForSeconds (0.3f);
-		ParticlesPool.Get ().Push (particle);
+		particle.emit = false;
+		particlesPool.Push (particle.gameObject);
 		yield return null;
 	}
 	void dropBalls ()
@@ -272,12 +276,12 @@ public class Game : MonoBehaviour {
 				if(bubbles[i,j] == null)
 				{
 					steps ++;
-					Bubble bubble = BubblePool.Get().Pull().GetComponent<Bubble>();
+					Bubble bubble = bubblesPool.Pull().GetComponent<Bubble>();
 					bubbles[i,j] = bubble;
 					bubble.posX = i;
 					bubble.posY = j;
 					bubblesInAction++;
-					bubble.transform.parent = Table.transform;
+					bubble.transform.SetParent (Table.transform);
 					bubble.SetType ((Bubble.Type)Mathf.RoundToInt(UnityEngine.Random.Range(0,Enum.GetNames(typeof(Bubble.Type)).Length)), bubbleSize);
 					bubble.transform.localPosition = new Vector3 ((float)bubble.posX * bubbleSize + ((float)(bubble.posX) * BubblePadding)-bubblesOffset, 
 					                                              (float)(TableSize+steps) * bubbleSize + ((float)(TableSize+steps) * BubblePadding)-bubblesOffset, 0f);
@@ -309,7 +313,7 @@ public class Game : MonoBehaviour {
 		for(int i = 0; i < TableSize; i++)
 			for(int j = 0; j < TableSize;j++)
 			{
-				GameObject obj = BubblePool.Get().Pull();
+				GameObject obj = bubblesPool.Pull();
 				Bubble bubble = obj.GetComponent<Bubble>(); 
 				bubble.posX = i;
 				bubble.posY = j;
@@ -474,7 +478,7 @@ public class Game : MonoBehaviour {
 
 	void insertBubbleInTable (Bubble bubble)
 	{
-		bubble.transform.parent = Table.transform;
+		bubble.transform.SetParent(Table.transform);
 		bubble.SetType ((Bubble.Type)Mathf.RoundToInt(UnityEngine.Random.Range(0,Enum.GetNames(typeof(Bubble.Type)).Length)), bubbleSize);
 		bubble.transform.localPosition = new Vector3 ((float)bubble.posX * bubbleSize + ((float)(bubble.posX) * BubblePadding)-bubblesOffset, 
 		                                              (float)bubble.posY * bubbleSize + ((float)(bubble.posY) * BubblePadding)-bubblesOffset, 0f);
